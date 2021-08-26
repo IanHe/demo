@@ -1,0 +1,76 @@
+plugins {
+    id 'org.springframework.boot' version '2.4.10'
+    id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+    id 'java'
+    id 'war'
+    id 'application'
+    id "de.undercouch.download" version "4.1.2"
+}
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '1.8'
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+    appDynamics
+}
+
+applicationDefaultJvmArgs = [
+        "-javaagent:$buildDir/libs/appDynamics.jar",
+        "-Dappdynamics.agent.applicationName=EFC-SIT1",
+        "-Dappdynamics.agent.tierName=EFC",
+        "-Dappdynamics.agent.nodeName=ESIKDOCSSIT1EFC_K1A_aude2we012nabze",
+        "-Dappdynamics.agent.uniqueHostId=aude2we012nabze.basdev.aurdev.national.com.au",
+        "-Dappdynamics.agent.accountAccessKey=DUMMY",
+        "-Dappdynamics.http.proxyHost=pxyapp.austest.thenaional.com",
+        "-Dappdynamics.http.proxyPort=8080"
+]
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    compileOnly 'org.projectlombok:lombok'
+    runtimeOnly 'com.h2database:h2'
+    annotationProcessor 'org.projectlombok:lombok'
+    providedRuntime 'org.springframework.boot:spring-boot-starter-tomcat'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+task downloadAppDynamics(type: Download) {
+    println "Download AppDynamics zip file"
+    src 'https://drive.google.com/uc?export=download&id=1HXrV6EszM_5NHQEHPisPDI2r4sA4S9Bv'
+    dest new File("$buildDir/libs/", "appDynamics.zip")
+    overwrite true
+}
+
+task unzipAppDynamics(dependsOn: downloadAppDynamics, type: Copy) {
+    println "unzip AppDynamics zip and move agent jar file"
+    from zipTree(downloadAppDynamics.dest)
+    into "$buildDir/libs"
+}
+
+task moveAgentJar(dependsOn: unzipAppDynamics) {
+    println "move agent.jar"
+    doFirst {
+        file("$buildDir/libs/app-danamics-20.0/agent.jar").renameTo(file("$buildDir/libs/appDynamics.jar"))
+    }
+}
+
+task resolveAppDynamicsAgentJar(dependsOn: moveAgentJar, type: Delete) {
+    println "delete downloaded AppDynamics zip file"
+    delete files("$buildDir/libs/appDynamics.zip", "$buildDir/libs/app-danamics-20.0")
+}
+
+test {
+    useJUnitPlatform()
+}
+
+assemble.dependsOn resolveAppDynamicsAgentJar
+build.dependsOn resolveAppDynamicsAgentJar
+bootRun.dependsOn resolveAppDynamicsAgentJar
